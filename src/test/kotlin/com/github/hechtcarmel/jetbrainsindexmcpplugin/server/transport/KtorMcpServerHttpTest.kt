@@ -194,6 +194,35 @@ class KtorMcpServerHttpTest : BasePlatformTestCase() {
         assertEquals(HttpStatusCode.MethodNotAllowed.value, response.statusCode())
     }
 
+    /**
+     * The spec requires `text/event-stream` on the optional standalone GET stream and only allows
+     * `application/json` to be listed as well, so this is the header a spec-following client may
+     * send. The SDK serialised its 405 as JSON, Ktor's content negotiation had nothing acceptable
+     * to produce, and the client received an empty 406 — which MCP clients treat as a failed
+     * transport rather than "no standalone stream here".
+     */
+    fun testStreamableGetWithEventStreamOnlyAcceptReturnsMethodNotAllowed() {
+        val response = sendRequest(
+            method = "GET",
+            path = McpConstants.STREAMABLE_HTTP_ENDPOINT_PATH,
+            accept = "text/event-stream"
+        )
+
+        assertEquals(HttpStatusCode.MethodNotAllowed.value, response.statusCode())
+        assertEquals("POST", response.headers().firstValue("Allow").orElse(null))
+    }
+
+    fun testStreamableDeleteWithEventStreamOnlyAcceptReturnsMethodNotAllowed() {
+        val response = sendRequest(
+            method = "DELETE",
+            path = McpConstants.STREAMABLE_HTTP_ENDPOINT_PATH,
+            accept = "text/event-stream"
+        )
+
+        assertEquals(HttpStatusCode.MethodNotAllowed.value, response.statusCode())
+        assertEquals("POST", response.headers().firstValue("Allow").orElse(null))
+    }
+
     fun testStreamableRequestSucceedsWithoutInitialize() {
         val response = sendRequest(
             method = "POST",
@@ -342,10 +371,11 @@ class KtorMcpServerHttpTest : BasePlatformTestCase() {
         method: String,
         path: String,
         body: String? = null,
-        headers: Map<String, String> = emptyMap()
+        headers: Map<String, String> = emptyMap(),
+        accept: String = "application/json, text/event-stream"
     ): HttpResponse<String> {
         val builder = HttpRequest.newBuilder(URI.create("http://127.0.0.1:$port$path"))
-            .header("Accept", "application/json, text/event-stream")
+            .header("Accept", accept)
 
         headers.forEach { (name, value) -> builder.header(name, value) }
 
