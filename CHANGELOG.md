@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **`GET`/`DELETE` on the Streamable HTTP endpoint return 405 for spec-following clients** — kotlin-sdk 0.10.0 serialises those rejections as JSON, and Ktor's content negotiation rewrote them into an empty `406 Not Acceptable` whenever the request's `Accept` listed only `text/event-stream` — the header the spec requires for the optional standalone stream. MCP clients read 405 as "no standalone stream here" and continue, but treat 406 as a failed transport, so they reported the whole server as unreachable even though `POST` worked. Both methods are now answered before routing, with `Allow: POST`.
+
 ## [5.20.3] - 2026-10-24
 
 ### Fixed

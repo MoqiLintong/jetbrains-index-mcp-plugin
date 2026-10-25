@@ -141,6 +141,11 @@ class KtorMcpServer(
             bindHost = host
         )
 
+        // Registered after the origin guard so a rejected Origin/Host still wins, and before the
+        // SDK routes so the SDK never serialises its own 405 for these methods. See
+        // StreamableHttpMethodGuard for why the SDK's answer is not usable as-is.
+        installStreamableHttpMethodGuard(McpConstants.STREAMABLE_HTTP_ENDPOINT_PATH)
+
         // Must be the only Application-level `mcp*` call: each of them installs the SSE plugin
         // unconditionally, and a second install throws DuplicatePluginException. The legacy
         // routes below therefore use Route-level helpers and rely on SSE already being present.
