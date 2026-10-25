@@ -21,7 +21,7 @@ class ProjectUtilsPathAliasesTest : McpPlatformTestCase() {
 
     override fun setUp() {
         super.setUp()
-        workspace = Files.createTempDirectory("project-utils-alias-450-").toRealPath()
+        workspace = createExternalTempDirectory("project-utils-alias-450-")
     }
 
     override fun tearDown() {
@@ -30,7 +30,6 @@ class ProjectUtilsPathAliasesTest : McpPlatformTestCase() {
                 model.contentEntries.filter { it.url in addedRootUrls }.forEach(model::removeContentEntry)
             }
             addedRootUrls.clear()
-            Files.walk(workspace).use { paths -> paths.sorted(Comparator.reverseOrder()).forEach(Files::deleteIfExists) }
         } finally {
             super.tearDown()
         }
