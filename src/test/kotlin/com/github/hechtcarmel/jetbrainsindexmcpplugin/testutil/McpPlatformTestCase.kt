@@ -8,6 +8,7 @@ import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vfs.newvfs.impl.VfsRootAccess
 import com.intellij.testFramework.IndexingTestUtil
 import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
@@ -48,6 +49,9 @@ abstract class McpPlatformTestCase : BasePlatformTestCase() {
      */
     private var preExistingPaths: Set<Path> = emptySet()
 
+    /** Temp directories from [createExternalTempDirectory], removed in [tearDown]. */
+    private val externalTempDirectories = mutableListOf<Path>()
+
     override fun setUp() {
         super.setUp()
         preExistingPaths = snapshotProjectPaths()
@@ -59,6 +63,12 @@ abstract class McpPlatformTestCase : BasePlatformTestCase() {
             (snapshotProjectPaths() - preExistingPaths)
                 .sortedByDescending { it.nameCount }
                 .forEach { runCatching { Files.deleteIfExists(it) } }
+            externalTempDirectories.forEach { directory ->
+                Files.walk(directory).use { paths ->
+                    paths.sorted(Comparator.reverseOrder()).forEach { runCatching { Files.deleteIfExists(it) } }
+                }
+            }
+            externalTempDirectories.clear()
             project.basePath?.let {
                 LocalFileSystem.getInstance().refreshAndFindFileByPath(it)?.refresh(false, true)
             }
@@ -125,6 +135,26 @@ abstract class McpPlatformTestCase : BasePlatformTestCase() {
         PsiTestUtil.addSourceRoot(module, root)
         IndexingTestUtil.waitUntilIndexesAreReady(project)
         return root
+    }
+
+    /**
+     * Creates a canonical temp directory outside the project and allows the VFS to read it.
+     *
+     * `Files.createTempDirectory` on its own fails every VFS access with
+     * `VfsRootAccessNotAllowedError` (see [VfsRootAccess]) as soon as the path is canonicalised
+     * with `toRealPath()`, which tests need so VFS paths compare equal to the paths
+     * `resolveFile` reports. The platform allows `java.io.tmpdir` by its literal path; on macOS
+     * `/var` is a symlink to `/private/var`, so the canonical path is no longer under that root.
+     * Registering the canonical directory keeps the check intact without widening it to the whole
+     * temp directory.
+     *
+     * The directory is deleted in [tearDown].
+     */
+    protected fun createExternalTempDirectory(prefix: String): Path {
+        val directory = Files.createTempDirectory(prefix).toRealPath()
+        externalTempDirectories.add(directory)
+        VfsRootAccess.allowRootAccess(testRootDisposable, directory.toString())
+        return directory
     }
 
     // ── Assertions ──────────────────────────────────────────────────────────────────────
