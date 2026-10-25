@@ -92,8 +92,8 @@ class AmbiguousFileResolutionBehaviorTest : McpPlatformTestCase() {
     }
 
     fun testAmbiguityAcrossRootsOutsideProjectListsAbsolutePaths() = runBlocking {
-        // Real path, so the roots compare equal to the canonical paths resolveFile reports.
-        val workspace = Files.createTempDirectory("ambiguous-outside-roots").toRealPath()
+        // Canonical path, so the roots compare equal to the canonical paths resolveFile reports.
+        val workspace = createExternalTempDirectory("ambiguous-outside-roots")
         val roots = listOf("svc-a", "svc-b").map { name ->
             val file = workspace.resolve("$name/src/com/example/Helper.java")
             Files.createDirectories(file.parent)
@@ -132,7 +132,6 @@ class AmbiguousFileResolutionBehaviorTest : McpPlatformTestCase() {
                     .filter { entry -> roots.any { it.url == entry.url } }
                     .forEach(model::removeContentEntry)
             }
-            workspace.toFile().deleteRecursively()
         }
     }
 
